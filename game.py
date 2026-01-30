@@ -13,7 +13,7 @@ from barcode.writer import ImageWriter
 from io import BytesIO
 
 # --- 1. 設定與參數 ---
-GAME_DURATION = 30      # 遊戲時間
+GAME_DURATION = 20      # 遊戲時間 20 秒
 GRID_SIZE = 9           # 3x3
 MAX_DAILY_ATTEMPTS = 3  # 每日次數限制
 VIP_EMAIL = "vip@woowa.com" # VIP 帳號
@@ -65,8 +65,6 @@ def is_valid_email(email):
 def log_game_result(email, result, prize_name="N/A", coupon_code="N/A"):
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    # 定義標準欄位
-    columns = ["時間", "Email", "遊戲結果", "獎項", "優惠碼"]
     new_data = pd.DataFrame([{
         "時間": now, 
         "Email": email, 
@@ -75,19 +73,14 @@ def log_game_result(email, result, prize_name="N/A", coupon_code="N/A"):
         "優惠碼": coupon_code
     }])
 
-    # 寫入檔案 (如果檔案不存在或格式錯誤，直接覆寫/修復)
     if not os.path.exists(LOG_FILE):
         new_data.to_csv(LOG_FILE, index=False, encoding='utf-8-sig')
     else:
         try:
-            # 嘗試讀取舊資料，看是否格式相符
             old_df = pd.read_csv(LOG_FILE)
-            # 如果舊資料少欄位，就強制合併 (pandas 會自動補 NaN)
             combined = pd.concat([old_df, new_data], ignore_index=True)
             combined.to_csv(LOG_FILE, index=False, encoding='utf-8-sig')
         except Exception as e:
-            # 如果讀取失敗 (例如 ParserError)，則強制追加模式，不讀取舊檔
-            # 這樣至少新資料會進去，但可能會讓 CSV 格式變得有點亂，但不會報錯
             new_data.to_csv(LOG_FILE, mode='a', header=False, index=False, encoding='utf-8-sig')
 
 # --- 3. 視覺與 CSS ---
@@ -212,7 +205,6 @@ def add_custom_css():
         p {{ font-size: 0.9rem !important; }}
     }}
     
-    /* 獎項顯示樣式 */
     .prize-title {{
         font-size: 24px; font-weight: bold; color: #d63031; text-align: center; margin-top: 20px;
     }}
@@ -223,7 +215,6 @@ def add_custom_css():
     .prize-expiry {{
         font-size: 16px; color: #636e72; text-align: center; margin-bottom: 10px;
     }}
-    /* 截圖提示樣式 */
     .screenshot-alert {{
         background-color: #ff7675; color: white; padding: 10px; border-radius: 8px;
         text-align: center; font-weight: bold; font-size: 18px; margin: 15px 0;
@@ -437,7 +428,7 @@ elif st.session_state.game_phase == "PLAYING":
             st.session_state.temp_flipped = [] 
             st.rerun()
 
-# ================= 階段 3: 結算 (含機率抽獎) =================
+# ================= 階段 3: 結算 =================
 elif st.session_state.game_phase == "WIN":
     if not st.session_state.logged:
         rewards = [
@@ -445,7 +436,7 @@ elif st.session_state.game_phase == "WIN":
             ("B", "任一飲品+餐點折20元"),
             ("C", "WOOWA吊飾乙個(隨機)")
         ]
-        probabilities = [0.49, 0.49, 0.02]
+        probabilities = [0.497, 0.497, 0.006]
         
         selected = random.choices(rewards, weights=probabilities, k=1)[0]
         prize_type = selected[0] 
@@ -453,7 +444,8 @@ elif st.session_state.game_phase == "WIN":
         
         code = f"{prize_type}-{random.randint(10000,99999)}"
         
-        expiry_date = datetime.date.today() + datetime.timedelta(days=7)
+        # 期限 3 天
+        expiry_date = datetime.date.today() + datetime.timedelta(days=3)
         expiry_str = expiry_date.strftime("%Y/%m/%d")
         
         st.session_state.prize_info = {
@@ -473,7 +465,6 @@ elif st.session_state.game_phase == "WIN":
     st.markdown(f"<div class='prize-name'>獲得：{prize['name']}</div>", unsafe_allow_html=True)
     st.markdown(f"<div class='prize-expiry'>📅 使用期限：{prize['expiry']} (含當日)</div>", unsafe_allow_html=True)
     
-    # ★ 新增：醒目的截圖提示
     st.markdown("<div class='screenshot-alert'>📸 請務必截圖保存，憑此畫面兌換！</div>", unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1,2,1])
@@ -485,12 +476,14 @@ elif st.session_state.game_phase == "WIN":
             st.session_state.game_phase = "LOGIN"
             st.rerun()
             
+    # ★ 注意事項 (第4點加粗體)
     st.markdown("""
     <div class='footer-note'>
         <b>注意事項：</b><br>
         1. 使用期限以得獎畫面顯示時間為主，到期恕無法兌換。<br>
         2. 獎品僅限於 M5 COFFEE 內用店，外帶店不參加活動。<br>
-        3. 本活動最後最終決定權，取決於 M5 COFFEE 公告為主。
+        3. 本活動最後最終決定權，取決於 M5 COFFEE 公告為主。<br>
+        4. <b>每組兌換碼僅限兌換一次。</b>
     </div>
     """, unsafe_allow_html=True)
 
@@ -504,7 +497,7 @@ elif st.session_state.game_phase == "LOSE":
         st.session_state.game_phase = "LOGIN"
         st.rerun()
 
-# ================= ★ 後台介面 (含錯誤處理) ★ =================
+# ================= ★ 後台介面 ★ =================
 st.divider()
 
 with st.expander("⚙️ 管理員登入"):
@@ -512,19 +505,16 @@ with st.expander("⚙️ 管理員登入"):
     if admin_pwd == ADMIN_PASSWORD:
         st.success("已登入")
         if os.path.exists(LOG_FILE):
-            # ★ 關鍵修復：嘗試讀取，如果格式錯誤就重置或提示
             try:
                 df = pd.read_csv(LOG_FILE)
                 st.dataframe(df, height=200) 
                 csv = df.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
                 st.download_button("下載 CSV", csv, "game_data.csv", "text/csv")
             except Exception as e:
-                st.error("⚠️ 偵測到數據格式版本衝突 (可能是因為新增了獎項欄位)。")
-                st.warning("系統將自動修正此問題。請重新整理頁面，或進行一次遊戲來觸發修復。")
-                # 強制刪除舊檔以重置 (暴力解法，最有效)
-                if st.button("🔴 重置數據庫 (修復格式)"):
+                st.error("⚠️ 偵測到數據格式版本衝突。")
+                st.warning("請點擊下方按鈕重置數據庫以修復。")
+                if st.button("🔴 重置數據庫"):
                     os.remove(LOG_FILE)
-                    st.success("數據庫已重置，請重新開始遊戲。")
                     st.rerun()
         else:
             st.caption("尚無數據")
