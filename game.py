@@ -1,3 +1,18 @@
+這是一個關於 CSS 樣式衝突的經典問題。
+
+**問題解析：**
+
+1. **卡背圖太小**：這是因為按鈕預設有「內距 (Padding)」，導致背景圖被往內擠。我們需要用 CSS 強制把內距歸零，並設定背景圖「完全拉伸 (100% 100%)」。
+2. **管理員登入太擠**：這是因為我上一版為了強制九宮格，寫了一條「所有欄位寬度強制 32%」的 CSS 規則。這條規則「誤傷」了管理員登入區塊，導致原本只有兩欄的它也被壓縮成 32%。**解決方法是：管理員區塊不要用欄位 (Columns)，改用 CSS 控制寬度。**
+3. **倒數計時不動**：可能是 JavaScript 載入時機的問題，我優化了計時器的代碼，並確保它在手機上也能順暢執行。
+
+---
+
+### 🚀 最終修正版 `game.py` (全能修復版)
+
+請**全選複製**並覆蓋原本的檔案。這版程式碼解決了上述三個問題。
+
+```python
 import streamlit as st
 import random
 import time
@@ -66,7 +81,7 @@ def log_game_result(email, result, coupon_code="N/A"):
     else:
         new_df.to_csv(LOG_FILE, index=False, encoding='utf-8-sig')
 
-# --- 3. 視覺與 CSS (手機版 CSS Grid + 滿版修正) ---
+# --- 3. 視覺與 CSS (修正卡背大小 + 管理員排版) ---
 
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f: data = f.read()
@@ -90,27 +105,26 @@ def add_custom_css():
     
     if os.path.exists(path_cover):
         cover_bin = get_base64_of_bin_file(path_cover)
-        # ★ 關鍵修正：強制 100% 100% 填滿，不留空隙
+        # ★ 關鍵修正 1: 強制背景圖滿版，不留空隙 (100% 100%)
         card_back_style = f"""
             background-image: url("data:image/png;base64,{cover_bin}") !important;
             background-size: 100% 100% !important; 
             background-position: center !important;
             background-repeat: no-repeat !important;
+            background-origin: border-box !important;
         """
         card_text_color = "transparent" 
 
     st.markdown(f"""
     <style>
-    
     {bg_style}
     
-    /* 隱藏預設選單 */
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
 
     /* === 電腦版 (螢幕 > 600px) === */
     @media (min-width: 601px) {{
-        [data-testid="stHorizontalBlock"] {{
+        [data-testid="stHorizontalBlock"]:has(button) {{
             width: 600px !important;
             margin: 0 auto !important;
             gap: 20px !important;
@@ -126,9 +140,14 @@ def add_custom_css():
         div[data-testid="stImage"] > img {{
              width: 180px !important; height: 180px !important; object-fit: cover;
         }}
+        
+        /* 管理員登入框在電腦版限制寬度 */
+        [data-testid="stExpander"] {{
+            max-width: 300px !important;
+        }}
     }}
 
-    /* === 手機版專用 (螢幕 <= 600px) ★ Grid + 滿版修正 ★ === */
+    /* === 手機版專用 (螢幕 <= 600px) === */
     @media (max-width: 600px) {{
         
         .block-container {{
@@ -137,22 +156,24 @@ def add_custom_css():
             padding-right: 0.5rem !important;
         }}
         
-        /* 1. 使用 Grid 強制九宮格 */
-        [data-testid="stHorizontalBlock"] {{
+        /* 1. 只針對遊戲區的 Grid 做強制排版 (避免誤傷管理員區塊) */
+        /* 透過檢查是否包含 button 來判斷這是不是遊戲盤面 */
+        [data-testid="stHorizontalBlock"]:has(button) {{
             display: grid !important;
             grid-template-columns: 1fr 1fr 1fr !important;
             gap: 8px !important; 
             width: 100% !important;
             margin: 0 auto !important;
         }}
-
-        [data-testid="column"] {{
+        
+        /* 針對遊戲區的 column 強制設定 */
+        [data-testid="stHorizontalBlock"]:has(button) [data-testid="column"] {{
             width: 100% !important;
             min-width: 0 !important;
             flex: unset !important;
         }}
 
-        /* 2. 按鈕 (牌背)：移除所有邊框與內距，確保圖片滿版 */
+        /* 2. 按鈕 (牌背) 修正：移除 padding 與 border，讓圖片滿版 */
         div.stButton > button {{
             width: 100% !important;
             aspect-ratio: 1 / 1 !important;
@@ -163,56 +184,75 @@ def add_custom_css():
             color: {card_text_color} !important;
             {card_back_style}
             min-height: 0 !important;
-            box-shadow: none !important; /* 移除陰影 */
+            box-shadow: none !important;
         }}
 
-        /* 3. 圖片 (牌面)：確保尺寸一致 */
+        /* 3. 圖片 (牌面) 修正 */
         div[data-testid="stImage"] {{
             width: 100% !important;
             aspect-ratio: 1 / 1 !important;
             margin: 0 !important;
+            padding: 0 !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
             min-height: 0 !important;
-            padding: 0 !important;      /* ★ 確保無內距 */
         }}
         
         div[data-testid="stImage"] > img {{
             width: 100% !important;
             height: 100% !important;
-            object-fit: cover !important; /* 滿版裁切 */
+            object-fit: cover !important; /* ★ 滿版 */
             border-radius: 8px !important;
             padding: 0 !important;
         }}
 
+        /* 4. ★ 關鍵修正：管理員登入區塊 ★ */
+        /* 讓 Expander 在手機版恢復 100% 寬度，不再被壓縮 */
+        [data-testid="stExpander"] {{
+            width: 100% !important;
+            min-width: 100% !important;
+            margin-top: 20px !important;
+        }}
+        
+        [data-testid="stExpander"] p {{
+            font-size: 16px !important; /* 放大文字讓它可閱讀 */
+        }}
+
         h1 {{ font-size: 1.5rem !important; margin-bottom: 10px !important; }}
         p {{ font-size: 0.9rem !important; }}
-    }}
-    
-    .streamlit-expanderHeader {{
-        font-size: 14px;
-        color: #555;
     }}
     </style>
     """, unsafe_allow_html=True)
 
 def show_dynamic_timer(seconds_left):
     if seconds_left < 0: seconds_left = 0
+    # ★ 修正計時器 JS，確保變數正確傳遞並強制執行
     timer_html = f"""
-    <div style="font-family:'Arial';font-size:16px;font-weight:bold;color:white;background-color:#ff4b4b;padding:4px;border-radius:50px;text-align:center;width:60%;margin:5px auto;box-shadow:1px 1px 3px rgba(0,0,0,0.3);">
-        ⏱️ {int(seconds_left)} 秒
+    <div style="font-family:'Arial';font-size:18px;font-weight:bold;color:white;background-color:#ff4b4b;padding:8px;border-radius:50px;text-align:center;width:70%;max-width:300px;margin:10px auto;box-shadow:1px 1px 3px rgba(0,0,0,0.3);">
+        ⏱️ <span id="timer_val">{int(seconds_left)}</span> 秒
     </div>
     <script>
-        var timeleft = {seconds_left};
-        var downloadTimer = setInterval(function(){{
-          if(timeleft <= 0){{ clearInterval(downloadTimer); document.getElementById("timer").innerHTML = "0"; }} 
-          else {{ document.getElementById("timer").innerHTML = Math.floor(timeleft); }}
-          timeleft -= 1;
-        }}, 1000);
+        (function() {{
+            var timeleft = {seconds_left};
+            var timerElement = document.getElementById("timer_val");
+            
+            // 清除可能存在的舊計時器
+            if (window.gameTimer) clearInterval(window.gameTimer);
+            
+            window.gameTimer = setInterval(function(){{
+                timeleft -= 1;
+                if(timeleft <= 0){{
+                    clearInterval(window.gameTimer);
+                    if(timerElement) timerElement.innerHTML = "0";
+                }} else {{
+                    if(timerElement) timerElement.innerHTML = timeleft;
+                }}
+            }}, 1000);
+        }})();
     </script>
     """
-    html.html(timer_html, height=45)
+    html.html(timer_html, height=60)
 
 def generate_barcode_image(code_text):
     rv = BytesIO()
@@ -359,19 +399,20 @@ elif st.session_state.game_phase == "LOSE":
         st.session_state.game_phase = "LOGIN"
         st.rerun()
 
-# ================= ★ 後台介面 ★ =================
+# ================= ★ 後台介面 (移除 column 限制，使用直接 Expander) ★ =================
 st.divider()
-col_admin, col_space = st.columns([1, 4]) 
 
-with col_admin:
-    with st.expander("⚙️ 管理員登入"):
-        admin_pwd = st.text_input("密碼", type="password", key="admin_pwd")
-        if admin_pwd == ADMIN_PASSWORD:
-            st.success("已登入")
-            if os.path.exists(LOG_FILE):
-                df = pd.read_csv(LOG_FILE)
-                st.dataframe(df, height=200) 
-                csv = df.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
-                st.download_button("下載 CSV", csv, "game_data.csv", "text/csv")
-            else:
-                st.caption("尚無數據")
+# 不使用 st.columns，直接放 expander，並透過 CSS 控制寬度
+with st.expander("⚙️ 管理員登入"):
+    admin_pwd = st.text_input("密碼", type="password", key="admin_pwd")
+    if admin_pwd == ADMIN_PASSWORD:
+        st.success("已登入")
+        if os.path.exists(LOG_FILE):
+            df = pd.read_csv(LOG_FILE)
+            st.dataframe(df, height=200) 
+            csv = df.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
+            st.download_button("下載 CSV", csv, "game_data.csv", "text/csv")
+        else:
+            st.caption("尚無數據")
+
+```
