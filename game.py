@@ -16,7 +16,7 @@ from io import BytesIO
 GAME_DURATION = 30      # 遊戲時間
 GRID_SIZE = 9           # 3x3
 MAX_DAILY_ATTEMPTS = 3  # 每日次數限制
-VIP_EMAIL = "vip@woowa.com" # VIP 帳號
+VIP_EMAIL = "vip@woowa.com" # VIP 測試帳號
 
 DATA_FILE = "user_data.json" 
 LOG_FILE = "game_logs.csv"   
@@ -43,12 +43,17 @@ def save_data(data):
     with open(DATA_FILE, "w") as f: json.dump(data, f)
 
 def check_and_update_attempts(email):
+    # VIP 通關
     if email == VIP_EMAIL: return True, "VIP無限"
+    
     data = load_data()
     today_str = str(datetime.date.today())
     if email not in data: data[email] = {}
     current_count = data[email].get(today_str, 0)
-    if current_count >= MAX_DAILY_ATTEMPTS: return False, current_count
+    
+    if current_count >= MAX_DAILY_ATTEMPTS: 
+        return False, current_count
+    
     data[email][today_str] = current_count + 1
     save_data(data)
     return True, current_count + 1
@@ -66,7 +71,7 @@ def log_game_result(email, result, coupon_code="N/A"):
     else:
         new_df.to_csv(LOG_FILE, index=False, encoding='utf-8-sig')
 
-# --- 3. 視覺與 CSS (手機版響應式修正) ---
+# --- 3. 視覺與 CSS (手機版穩定九宮格修正) ---
 
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f: data = f.read()
@@ -101,14 +106,17 @@ def add_custom_css():
     {bg_style}
     
     /* =========================================
-       電腦版預設樣式 (維持原狀 180px)
+       通用設定 (電腦版)
        ========================================= */
+    /* 容器設定 */
     [data-testid="stHorizontalBlock"] {{
         width: 620px !important;
         margin: 0 auto !important;
         gap: 20px !important;      
+        align-items: center !important;
     }}
 
+    /* 欄位設定 */
     [data-testid="column"] {{
         width: 180px !important;
         flex: 0 0 auto !important;
@@ -116,6 +124,7 @@ def add_custom_css():
         min-width: 0 !important;
     }}
 
+    /* 按鈕(牌背)設定 */
     div.stButton > button {{
         width: 180px !important; 
         height: 180px !important; 
@@ -129,61 +138,67 @@ def add_custom_css():
         padding: 0 !important;
     }}
     
+    /* 圖片(牌面)設定 */
     div[data-testid="stImage"] {{
         width: 180px !important; 
         height: 180px !important; 
         margin-bottom: 20px !important;
     }}
-    
     div[data-testid="stImage"] > img {{
         width: 180px !important; height: 180px !important; object-fit: cover; border-radius: 15px;
     }}
 
     /* =========================================
-       ★ 手機版專用修正 (當螢幕小於 600px 時) ★
+       ★ 手機版強制九宮格與穩定大小修正 ★
        ========================================= */
     @media only screen and (max-width: 600px) {{
         
-        /* 1. 讓九宮格容器縮小以適應手機寬度 */
+        /* 1. 容器：強制把寬度撐滿，縮小間距，強制不換行 */
         [data-testid="stHorizontalBlock"] {{
-            width: 100% !important; /* 佔滿手機寬度 */
-            min-width: 300px !important;
-            gap: 10px !important;   /* 手機版間距縮小 */
-            justify-content: center !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            gap: 8px !important;
+            padding: 0 5px !important; 
+            display: flex !important;
+            flex-wrap: nowrap !important; /* 禁止換行 */
         }}
 
-        /* 2. 強制讓 Column 變成 33% 寬度，並並排顯示 (解決變一直線的問題) */
+        /* 2. 欄位：強制三個並排 (32%) */
         [data-testid="column"] {{
-            width: 31% !important;  /* 3個加起來接近 100% */
-            flex: 1 1 auto !important;
-            min-width: 80px !important; /* 防止縮太小 */
+            width: 32% !important;       
+            flex: 1 1 32% !important;    
+            min-width: 0 !important;     
+            max-width: 33% !important;   
         }}
 
-        /* 3. 按鈕 (卡片) 縮小 */
+        /* 3. 按鈕 (牌背)：鎖定長寬比為 1:1 (正方形) */
         div.stButton > button {{
-            width: 100% !important; /* 跟隨欄位寬度 */
-            aspect-ratio: 1 / 1 !important; /* 保持正方形 */
-            height: auto !important;
-            font-size: 30px !important; /* 字體縮小 */
-            margin-bottom: 10px !important;
+            width: 100% !important;      
+            aspect-ratio: 1 / 1 !important; /* ★ 關鍵 */
+            height: auto !important;     
+            min-height: 0 !important;
+            margin-bottom: 8px !important; 
+            font-size: 24px !important;
         }}
 
-        /* 4. 圖片縮小 */
+        /* 4. 圖片 (牌面)：強制跟按鈕一樣大小 */
         div[data-testid="stImage"] {{
             width: 100% !important;
+            aspect-ratio: 1 / 1 !important; /* ★ 關鍵 */
             height: auto !important;
-            margin-bottom: 10px !important;
-        }}
-        div[data-testid="stImage"] > img {{
-            width: 100% !important;
-            height: auto !important;
-            aspect-ratio: 1 / 1 !important; /* 圖片保持正方形 */
+            margin-bottom: 8px !important;
+            display: flex !important;
+            align-items: center !important;
         }}
         
-        /* 5. 標題縮小 */
-        h1 {{
-            font-size: 1.8rem !important;
+        div[data-testid="stImage"] > img {{
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important; 
+            border-radius: 10px !important;
         }}
+        
+        h1 {{ font-size: 1.5rem !important; }}
     }}
     
     .streamlit-expanderHeader {{
@@ -195,9 +210,8 @@ def add_custom_css():
 
 def show_dynamic_timer(seconds_left):
     if seconds_left < 0: seconds_left = 0
-    # 手機版也把計時器縮小一點
     timer_html = f"""
-    <div style="font-family:'Arial';font-size:24px;font-weight:bold;color:white;background-color:#ff4b4b;padding:8px;border-radius:10px;text-align:center;width:80%;max-width:300px;margin:10px auto;box-shadow:2px 2px 5px rgba(0,0,0,0.5);">
+    <div style="font-family:'Arial';font-size:20px;font-weight:bold;color:white;background-color:#ff4b4b;padding:8px;border-radius:10px;text-align:center;width:80%;max-width:300px;margin:10px auto;box-shadow:2px 2px 5px rgba(0,0,0,0.5);">
         ⏱️ 剩餘時間: <span id="timer">{int(seconds_left)}</span> 秒
     </div>
     <script>
@@ -291,12 +305,12 @@ elif st.session_state.game_phase == "PLAYING":
             with cols[i % 3]:
                 content = st.session_state.board[i]
                 
-                # 顯示牌面
+                # 顯示牌面 (設定為正方形 1:1)
                 if st.session_state.solved[i] or i in st.session_state.temp_flipped:
                     if str(content).lower().endswith(('.png','.jpg','.jpeg')): 
                         st.image(content)
                     else: 
-                        st.markdown(f"<div style='width:100%;aspect-ratio:1/1;background:white;display:flex;align-items:center;justify-content:center;font-size:40px;border-radius:15px;margin-bottom:10px;border:2px solid #333;'>{content}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div style='width:100%;aspect-ratio:1/1;background:white;display:flex;align-items:center;justify-content:center;font-size:40px;border-radius:15px;margin-bottom:8px;border:2px solid #333;'>{content}</div>", unsafe_allow_html=True)
                 else:
                     # 顯示牌背
                     disable = (len(st.session_state.temp_flipped) >= 3)
