@@ -16,7 +16,7 @@ from io import BytesIO
 GAME_DURATION = 30      # 遊戲時間
 GRID_SIZE = 9           # 3x3
 MAX_DAILY_ATTEMPTS = 3  # 每日次數限制
-VIP_EMAIL = "vip@woowa.com" # VIP 測試帳號
+VIP_EMAIL = "vip@woowa.com" # VIP 帳號
 
 DATA_FILE = "user_data.json" 
 LOG_FILE = "game_logs.csv"   
@@ -43,17 +43,12 @@ def save_data(data):
     with open(DATA_FILE, "w") as f: json.dump(data, f)
 
 def check_and_update_attempts(email):
-    # VIP 通關
     if email == VIP_EMAIL: return True, "VIP無限"
-    
     data = load_data()
     today_str = str(datetime.date.today())
     if email not in data: data[email] = {}
     current_count = data[email].get(today_str, 0)
-    
-    if current_count >= MAX_DAILY_ATTEMPTS: 
-        return False, current_count
-    
+    if current_count >= MAX_DAILY_ATTEMPTS: return False, current_count
     data[email][today_str] = current_count + 1
     save_data(data)
     return True, current_count + 1
@@ -71,7 +66,7 @@ def log_game_result(email, result, coupon_code="N/A"):
     else:
         new_df.to_csv(LOG_FILE, index=False, encoding='utf-8-sig')
 
-# --- 3. 視覺與 CSS (手機版穩定九宮格修正) ---
+# --- 3. 視覺與 CSS (手機版極致優化) ---
 
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f: data = f.read()
@@ -105,100 +100,83 @@ def add_custom_css():
     <style>
     {bg_style}
     
-    /* =========================================
-       通用設定 (電腦版)
-       ========================================= */
-    /* 容器設定 */
-    [data-testid="stHorizontalBlock"] {{
-        width: 620px !important;
-        margin: 0 auto !important;
-        gap: 20px !important;      
-        align-items: center !important;
+    /* === 電腦版 (螢幕大於 600px) === */
+    @media (min-width: 601px) {{
+        [data-testid="stHorizontalBlock"] {{
+            width: 600px !important;
+            margin: 0 auto !important;
+            gap: 20px !important;
+        }}
+        div.stButton > button, div[data-testid="stImage"] {{
+            width: 180px !important; 
+            height: 180px !important;
+            margin-bottom: 20px !important;
+        }}
+        div[data-testid="stImage"] > img {{
+             width: 180px !important; height: 180px !important; object-fit: cover;
+        }}
     }}
 
-    /* 欄位設定 */
-    [data-testid="column"] {{
-        width: 180px !important;
-        flex: 0 0 auto !important;
-        padding: 0 !important;
-        min-width: 0 !important;
-    }}
-
-    /* 按鈕(牌背)設定 */
-    div.stButton > button {{
-        width: 180px !important; 
-        height: 180px !important; 
-        font-size: 50px !important;
-        background-color: rgba(255, 255, 255, 0.9); 
-        border-radius: 15px; 
-        border: 2px solid #333;
-        margin-bottom: 20px !important; 
-        color: {card_text_color} !important;
-        {card_back_style}
-        padding: 0 !important;
-    }}
-    
-    /* 圖片(牌面)設定 */
-    div[data-testid="stImage"] {{
-        width: 180px !important; 
-        height: 180px !important; 
-        margin-bottom: 20px !important;
-    }}
-    div[data-testid="stImage"] > img {{
-        width: 180px !important; height: 180px !important; object-fit: cover; border-radius: 15px;
-    }}
-
-    /* =========================================
-       ★ 手機版強制九宮格與穩定大小修正 ★
-       ========================================= */
-    @media only screen and (max-width: 600px) {{
+    /* === 手機版專用 (螢幕小於 600px) ★ 重點修改區 ★ === */
+    @media (max-width: 600px) {{
         
-        /* 1. 容器：強制把寬度撐滿，縮小間距，強制不換行 */
+        /* 1. 調整主要容器：去除內距，讓九宮格貼近邊緣 */
+        .block-container {{
+            padding-left: 5px !important;
+            padding-right: 5px !important;
+            padding-top: 10px !important;
+        }}
+
+        /* 2. 橫向排列容器：強制不換行，設定極小間距 */
         [data-testid="stHorizontalBlock"] {{
             width: 100% !important;
-            max-width: 100% !important;
-            gap: 8px !important;
-            padding: 0 5px !important; 
+            gap: 6px !important; /* 格子間的縫隙 */
             display: flex !important;
-            flex-wrap: nowrap !important; /* 禁止換行 */
+            flex-wrap: nowrap !important;
+            justify-content: center !important;
         }}
 
-        /* 2. 欄位：強制三個並排 (32%) */
+        /* 3. 每一個欄位 (Column)：強制佔 1/3 寬度 */
         [data-testid="column"] {{
-            width: 32% !important;       
-            flex: 1 1 32% !important;    
-            min-width: 0 !important;     
-            max-width: 33% !important;   
+            width: 32% !important; 
+            flex: 1 1 32% !important;
+            min-width: 0 !important;
         }}
 
-        /* 3. 按鈕 (牌背)：鎖定長寬比為 1:1 (正方形) */
+        /* 4. 按鈕 (牌背)：強制正方形 (Aspect Ratio 1/1) */
         div.stButton > button {{
-            width: 100% !important;      
-            aspect-ratio: 1 / 1 !important; /* ★ 關鍵 */
-            height: auto !important;     
-            min-height: 0 !important;
-            margin-bottom: 8px !important; 
-            font-size: 24px !important;
+            width: 100% !important;
+            aspect-ratio: 1 / 1 !important; /* ★ 關鍵：正方形鎖定 */
+            height: auto !important;
+            margin: 0 !important; /* 移除外距，讓它緊湊 */
+            padding: 0 !important;
+            border-radius: 8px !important;
+            {card_back_style}
+            color: {card_text_color} !important;
         }}
 
-        /* 4. 圖片 (牌面)：強制跟按鈕一樣大小 */
+        /* 5. 圖片 (牌面)：完全複製按鈕的尺寸設定 */
         div[data-testid="stImage"] {{
             width: 100% !important;
-            aspect-ratio: 1 / 1 !important; /* ★ 關鍵 */
+            aspect-ratio: 1 / 1 !important; /* ★ 關鍵：正方形鎖定 */
             height: auto !important;
-            margin-bottom: 8px !important;
+            margin: 0 !important;
             display: flex !important;
             align-items: center !important;
+            justify-content: center !important;
         }}
         
         div[data-testid="stImage"] > img {{
             width: 100% !important;
             height: 100% !important;
-            object-fit: cover !important; 
-            border-radius: 10px !important;
+            object-fit: cover !important; /* 填滿格子不變形 */
+            border-radius: 8px !important;
+            margin: 0 !important;
         }}
-        
-        h1 {{ font-size: 1.5rem !important; }}
+
+        /* 6. 標題文字縮小 */
+        h1 {{ font-size: 1.5rem !important; margin-bottom: 10px !important; }}
+        p {{ font-size: 0.9rem !important; }}
     }}
     
     .streamlit-expanderHeader {{
@@ -211,7 +189,7 @@ def add_custom_css():
 def show_dynamic_timer(seconds_left):
     if seconds_left < 0: seconds_left = 0
     timer_html = f"""
-    <div style="font-family:'Arial';font-size:20px;font-weight:bold;color:white;background-color:#ff4b4b;padding:8px;border-radius:10px;text-align:center;width:80%;max-width:300px;margin:10px auto;box-shadow:2px 2px 5px rgba(0,0,0,0.5);">
+    <div style="font-family:'Arial';font-size:20px;font-weight:bold;color:white;background-color:#ff4b4b;padding:5px;border-radius:10px;text-align:center;width:90%;max-width:300px;margin:10px auto;box-shadow:2px 2px 5px rgba(0,0,0,0.5);">
         ⏱️ 剩餘時間: <span id="timer">{int(seconds_left)}</span> 秒
     </div>
     <script>
@@ -298,19 +276,20 @@ elif st.session_state.game_phase == "PLAYING":
         st.session_state.game_phase = "LOSE"
         st.rerun()
 
-    # ★ 繪製九宮格
+    # ★ 繪製九宮格 (這裡會被 CSS 強制排版)
     with st.container():
+        # CSS 透過 gap 控制間距，這裡 columns(3) 只是生成結構
         cols = st.columns(3) 
         for i in range(GRID_SIZE):
             with cols[i % 3]:
                 content = st.session_state.board[i]
                 
-                # 顯示牌面 (設定為正方形 1:1)
+                # 顯示牌面
                 if st.session_state.solved[i] or i in st.session_state.temp_flipped:
                     if str(content).lower().endswith(('.png','.jpg','.jpeg')): 
                         st.image(content)
                     else: 
-                        st.markdown(f"<div style='width:100%;aspect-ratio:1/1;background:white;display:flex;align-items:center;justify-content:center;font-size:40px;border-radius:15px;margin-bottom:8px;border:2px solid #333;'>{content}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div style='width:100%;aspect-ratio:1/1;background:white;display:flex;align-items:center;justify-content:center;font-size:30px;border-radius:8px;border:2px solid #333;'>{content}</div>", unsafe_allow_html=True)
                 else:
                     # 顯示牌背
                     disable = (len(st.session_state.temp_flipped) >= 3)
