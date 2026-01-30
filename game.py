@@ -66,7 +66,7 @@ def log_game_result(email, result, coupon_code="N/A"):
     else:
         new_df.to_csv(LOG_FILE, index=False, encoding='utf-8-sig')
 
-# --- 3. 視覺與 CSS (手機版 CSS Grid 強制修正) ---
+# --- 3. 視覺與 CSS (手機版 CSS Grid + 滿版修正) ---
 
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f: data = f.read()
@@ -90,9 +90,10 @@ def add_custom_css():
     
     if os.path.exists(path_cover):
         cover_bin = get_base64_of_bin_file(path_cover)
+        # ★ 關鍵修正：強制 100% 100% 填滿，不留空隙
         card_back_style = f"""
             background-image: url("data:image/png;base64,{cover_bin}") !important;
-            background-size: cover !important;
+            background-size: 100% 100% !important; 
             background-position: center !important;
             background-repeat: no-repeat !important;
         """
@@ -100,6 +101,7 @@ def add_custom_css():
 
     st.markdown(f"""
     <style>
+    
     {bg_style}
     
     /* 隱藏預設選單 */
@@ -126,45 +128,45 @@ def add_custom_css():
         }}
     }}
 
-    /* === 手機版專用 (螢幕 <= 600px) ★ Grid 佈局修正 ★ === */
+    /* === 手機版專用 (螢幕 <= 600px) ★ Grid + 滿版修正 ★ === */
     @media (max-width: 600px) {{
         
-        /* 1. 頁面邊距極小化，爭取空間 */
         .block-container {{
             padding-top: 2rem !important;
             padding-left: 0.5rem !important;
             padding-right: 0.5rem !important;
         }}
         
-        /* 2. 將容器改為 CSS Grid，這是解決「擠壓」最有效的方法 */
+        /* 1. 使用 Grid 強制九宮格 */
         [data-testid="stHorizontalBlock"] {{
             display: grid !important;
-            grid-template-columns: 1fr 1fr 1fr !important; /* 強制切成三等份 */
-            gap: 8px !important; /* 格子間距 */
+            grid-template-columns: 1fr 1fr 1fr !important;
+            gap: 8px !important; 
             width: 100% !important;
             margin: 0 auto !important;
         }}
 
-        /* 3. 欄位設定：填滿 Grid 的每一格 */
         [data-testid="column"] {{
             width: 100% !important;
-            min-width: 0 !important; /* 允許縮小到比預設更小 */
-            flex: unset !important;  /* 移除 Flex 影響 */
+            min-width: 0 !important;
+            flex: unset !important;
         }}
 
-        /* 4. 按鈕 (牌背)：保持正方形，填滿欄位 */
+        /* 2. 按鈕 (牌背)：移除所有邊框與內距，確保圖片滿版 */
         div.stButton > button {{
             width: 100% !important;
             aspect-ratio: 1 / 1 !important;
             margin: 0 !important;
-            padding: 0 !important;
+            padding: 0 !important;       /* ★ 移除內距 */
+            border: none !important;     /* ★ 移除邊框 */
             border-radius: 8px !important;
             color: {card_text_color} !important;
             {card_back_style}
-            min-height: 0 !important; /* 防止被預設高度撐開 */
+            min-height: 0 !important;
+            box-shadow: none !important; /* 移除陰影 */
         }}
 
-        /* 5. 圖片 (牌面)：保持正方形 */
+        /* 3. 圖片 (牌面)：確保尺寸一致 */
         div[data-testid="stImage"] {{
             width: 100% !important;
             aspect-ratio: 1 / 1 !important;
@@ -173,16 +175,17 @@ def add_custom_css():
             align-items: center !important;
             justify-content: center !important;
             min-height: 0 !important;
+            padding: 0 !important;      /* ★ 確保無內距 */
         }}
         
         div[data-testid="stImage"] > img {{
             width: 100% !important;
             height: 100% !important;
-            object-fit: cover !important;
+            object-fit: cover !important; /* 滿版裁切 */
             border-radius: 8px !important;
+            padding: 0 !important;
         }}
 
-        /* 6. 其他文字調整 */
         h1 {{ font-size: 1.5rem !important; margin-bottom: 10px !important; }}
         p {{ font-size: 0.9rem !important; }}
     }}
@@ -286,7 +289,6 @@ elif st.session_state.game_phase == "PLAYING":
 
     # ★ 繪製九宮格
     with st.container():
-        # CSS Grid 會接管這裡的排版，st.columns(3) 只是為了產生 3 個 div 結構
         cols = st.columns(3) 
         for i in range(GRID_SIZE):
             with cols[i % 3]:
