@@ -22,14 +22,14 @@ DATA_FILE = "user_data.json"
 LOG_FILE = "game_logs.csv"   
 ADMIN_PASSWORD = "admin"     
 
-# 圖片路徑 (定義多個 lose 圖片)
+# 圖片路徑
 current_dir = os.path.dirname(os.path.abspath(__file__))
 path_win = os.path.join(current_dir, "win.png")
 path_bg = os.path.join(current_dir, "bg.jpg")
 path_cover = os.path.join(current_dir, "cover.png")
 path_alert = os.path.join(current_dir, "alert.png")
 
-# ★ 設定 3 種雜魚圖的路徑
+# 雜魚圖路徑
 path_lose1 = os.path.join(current_dir, "lose1.png")
 path_lose2 = os.path.join(current_dir, "lose2.png")
 path_lose3 = os.path.join(current_dir, "lose3.png")
@@ -62,9 +62,15 @@ def is_valid_email(email):
     pattern = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
     return re.match(pattern, email) is not None
 
-def log_game_result(email, result, coupon_code="N/A"):
+def log_game_result(email, result, prize_name="N/A", coupon_code="N/A"):
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    new_data = {"時間": [now], "Email": [email], "遊戲結果": [result], "優惠碼": [coupon_code]}
+    new_data = {
+        "時間": [now], 
+        "Email": [email], 
+        "遊戲結果": [result], 
+        "獎項": [prize_name],
+        "優惠碼": [coupon_code]
+    }
     new_df = pd.DataFrame(new_data)
     if os.path.exists(LOG_FILE):
         new_df.to_csv(LOG_FILE, mode='a', header=False, index=False, encoding='utf-8-sig')
@@ -100,6 +106,7 @@ def add_custom_css():
             background-size: 100% 100% !important; 
             background-position: center !important;
             background-repeat: no-repeat !important;
+            background-origin: border-box !important;
         """
         card_text_color = "transparent" 
 
@@ -110,7 +117,26 @@ def add_custom_css():
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
 
-    /* === 電腦版 (螢幕 > 600px) === */
+    @keyframes shake {{
+        0% {{ transform: translate(1px, 1px) rotate(0deg); }}
+        10% {{ transform: translate(-1px, -2px) rotate(-1deg); }}
+        20% {{ transform: translate(-3px, 0px) rotate(1deg); }}
+        30% {{ transform: translate(3px, 2px) rotate(0deg); }}
+        40% {{ transform: translate(1px, -1px) rotate(1deg); }}
+        50% {{ transform: translate(-1px, 2px) rotate(-1deg); }}
+        60% {{ transform: translate(-3px, 1px) rotate(0deg); }}
+        70% {{ transform: translate(3px, 1px) rotate(-1deg); }}
+        80% {{ transform: translate(-1px, -1px) rotate(1deg); }}
+        90% {{ transform: translate(1px, 2px) rotate(0deg); }}
+        100% {{ transform: translate(1px, -2px) rotate(-1deg); }}
+    }}
+    
+    .shaking {{
+        animation: shake 0.5s;
+        animation-iteration-count: infinite;
+    }}
+
+    /* === 電腦版 === */
     @media (min-width: 601px) {{
         [data-testid="stHorizontalBlock"]:has(button) {{
             width: 600px !important;
@@ -128,21 +154,16 @@ def add_custom_css():
         div[data-testid="stImage"] > img {{
              width: 180px !important; height: 180px !important; object-fit: cover;
         }}
-        
-        [data-testid="stExpander"] {{
-            max-width: 300px !important;
-        }}
+        [data-testid="stExpander"] {{ max-width: 300px !important; }}
     }}
 
-    /* === 手機版專用 (螢幕 <= 600px) === */
+    /* === 手機版專用 === */
     @media (max-width: 600px) {{
-        
         .block-container {{
             padding-top: 2rem !important;
             padding-left: 0.5rem !important;
             padding-right: 0.5rem !important;
         }}
-        
         [data-testid="stHorizontalBlock"]:has(button) {{
             display: grid !important;
             grid-template-columns: 1fr 1fr 1fr !important;
@@ -150,57 +171,49 @@ def add_custom_css():
             width: 100% !important;
             margin: 0 auto !important;
         }}
-        
         [data-testid="stHorizontalBlock"]:has(button) [data-testid="column"] {{
-            width: 100% !important;
-            min-width: 0 !important;
-            flex: unset !important;
+            width: 100% !important; min-width: 0 !important; flex: unset !important;
         }}
-
         div.stButton > button {{
-            width: 100% !important;
-            aspect-ratio: 1 / 1 !important;
-            margin: 0 !important;
-            padding: 0 !important;       
-            border: none !important;     
-            border-radius: 8px !important;
-            color: {card_text_color} !important;
+            width: 100% !important; aspect-ratio: 1 / 1 !important;
+            margin: 0 !important; padding: 0 !important; border: none !important;     
+            border-radius: 8px !important; color: {card_text_color} !important;
             {card_back_style}
-            min-height: 0 !important;
-            box-shadow: none !important;
+            min-height: 0 !important; box-shadow: none !important;
         }}
-
         div[data-testid="stImage"] {{
-            width: 100% !important;
-            aspect-ratio: 1 / 1 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
+            width: 100% !important; aspect-ratio: 1 / 1 !important;
+            margin: 0 !important; padding: 0 !important;
+            display: flex !important; align-items: center !important; justify-content: center !important;
             min-height: 0 !important;
         }}
-        
         div[data-testid="stImage"] > img {{
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: cover !important; 
-            border-radius: 8px !important;
-            padding: 0 !important;
+            width: 100% !important; height: 100% !important;
+            object-fit: cover !important; border-radius: 8px !important; padding: 0 !important;
         }}
-
         [data-testid="stExpander"] {{
-            width: 100% !important;
-            min-width: 100% !important;
-            margin-top: 20px !important;
+            width: 100% !important; min-width: 100% !important; margin-top: 20px !important;
         }}
-        
-        [data-testid="stExpander"] p {{
-            font-size: 16px !important; 
-        }}
-
+        [data-testid="stExpander"] p {{ font-size: 16px !important; }}
         h1 {{ font-size: 1.5rem !important; margin-bottom: 10px !important; }}
         p {{ font-size: 0.9rem !important; }}
+    }}
+    
+    /* 獎項顯示樣式 */
+    .prize-title {{
+        font-size: 24px; font-weight: bold; color: #d63031; text-align: center; margin-top: 20px;
+    }}
+    .prize-name {{
+        font-size: 20px; font-weight: bold; color: #2d3436; text-align: center; margin-bottom: 10px;
+        background: rgba(255,255,255,0.8); padding: 15px; border-radius: 10px;
+    }}
+    .prize-expiry {{
+        font-size: 16px; color: #636e72; text-align: center; margin-bottom: 20px;
+    }}
+    .footer-note {{
+        font-size: 12px; color: #636e72; margin-top: 30px; padding: 10px;
+        background-color: rgba(240, 240, 240, 0.8); border-radius: 5px;
+        line-height: 1.5;
     }}
     </style>
     """, unsafe_allow_html=True)
@@ -218,7 +231,6 @@ def show_dynamic_timer(seconds_left):
     
     init_val = int(seconds_left)
     
-    # ★ 關鍵修正：將 CSS 放在 iframe 內部，確保動畫生效
     timer_html = f"""
     <style>
         @keyframes shake {{
@@ -251,7 +263,6 @@ def show_dynamic_timer(seconds_left):
             
             if (window.gameTimer) clearInterval(window.gameTimer);
             
-            // 立即檢查
             if(timeleft <= 5 && alertIcon) {{
                 alertIcon.style.display = "inline-block";
                 alertIcon.classList.add("shaking");
@@ -291,21 +302,18 @@ def init_game():
     
     win_content = path_win if os.path.exists(path_win) else "🌟"
     
-    # ★ 關鍵修正：隨機選取多種雜魚圖
     available_lose = []
     if os.path.exists(path_lose1): available_lose.append(path_lose1)
     if os.path.exists(path_lose2): available_lose.append(path_lose2)
     if os.path.exists(path_lose3): available_lose.append(path_lose3)
     
-    # 如果沒找到 1,2,3，試試看有沒有舊的 lose.png，再沒有就用 Emoji
     if not available_lose:
         old_lose = os.path.join(current_dir, "lose.png")
         if os.path.exists(old_lose):
             available_lose.append(old_lose)
         else:
-            available_lose.append("💨") # Emoji 備案
+            available_lose.append("💨") 
 
-    # 產生牌組：3張贏 + 6張隨機的輸
     cards = [win_content] * target_count
     for _ in range(distractor_count):
         cards.append(random.choice(available_lose))
@@ -375,20 +383,17 @@ elif st.session_state.game_phase == "PLAYING":
             with cols[i % 3]:
                 content = st.session_state.board[i]
                 
-                # 顯示牌面
                 if st.session_state.solved[i] or i in st.session_state.temp_flipped:
                     if str(content).lower().endswith(('.png','.jpg','.jpeg')): 
                         st.image(content)
                     else: 
                         st.markdown(f"<div style='width:100%;aspect-ratio:1/1;background:white;display:flex;align-items:center;justify-content:center;font-size:30px;border-radius:8px;border:2px solid #333;'>{content}</div>", unsafe_allow_html=True)
                 else:
-                    # 顯示牌背
                     disable = (len(st.session_state.temp_flipped) >= 3)
                     if st.button("❓", key=i, disabled=disable):
                         st.session_state.temp_flipped.append(i)
                         st.rerun()
 
-    # 比對邏輯
     if len(st.session_state.temp_flipped) == 3:
         idx1, idx2, idx3 = st.session_state.temp_flipped
         c1 = st.session_state.board[idx1]
@@ -409,30 +414,71 @@ elif st.session_state.game_phase == "PLAYING":
             st.session_state.temp_flipped = [] 
             st.rerun()
 
-# ================= 階段 3: 結算 =================
+# ================= 階段 3: 結算 (含機率抽獎) =================
 elif st.session_state.game_phase == "WIN":
     if not st.session_state.logged:
-        code = f"VIP-{random.randint(10000,99999)}"
-        st.session_state.coupon_code = code
-        log_game_result(st.session_state.current_user_email, "WIN", code)
+        # ★ 機率抽獎邏輯 ★
+        rewards = [
+            ("A", "飲品折10元優惠"),
+            ("B", "任一飲品+餐點折20元"),
+            ("C", "WOOWA吊飾乙個(隨機)")
+        ]
+        probabilities = [0.49, 0.49, 0.02]
+        
+        # 抽出獎品 (回傳的是一個 list，取第一個)
+        selected = random.choices(rewards, weights=probabilities, k=1)[0]
+        prize_type = selected[0] # A, B, or C
+        prize_name = selected[1] # 獎品全名
+        
+        # 產生優惠碼
+        code = f"{prize_type}-{random.randint(10000,99999)}"
+        
+        # 計算期限 (當下 + 7天)
+        expiry_date = datetime.date.today() + datetime.timedelta(days=7)
+        expiry_str = expiry_date.strftime("%Y/%m/%d")
+        
+        # 存入 Session 供顯示
+        st.session_state.prize_info = {
+            "name": prize_name,
+            "code": code,
+            "expiry": expiry_str
+        }
+        
+        # 記錄到後台
+        log_game_result(st.session_state.current_user_email, "WIN", prize_name, code)
         st.session_state.logged = True
 
     st.balloons()
-    st.markdown("<h1 style='text-align: center;'>🎉 恭喜通關！</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>▼ 請截圖保存您的優惠碼 ▼</p>", unsafe_allow_html=True)
     
+    # --- 顯示獎品畫面 ---
+    prize = st.session_state.prize_info
+    
+    st.markdown("<h1 style='text-align: center;'>🎉 恭喜中獎！</h1>", unsafe_allow_html=True)
+    st.markdown(f"<div class='prize-name'>獲得：{prize['name']}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='prize-expiry'>📅 使用期限：{prize['expiry']} (含當日)</div>", unsafe_allow_html=True)
+
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
-        img = generate_barcode_image(st.session_state.coupon_code)
-        st.image(img, caption=f"優惠碼: {st.session_state.coupon_code}")
+        img = generate_barcode_image(prize['code'])
+        st.image(img, caption=f"優惠碼: {prize['code']}")
         
         if st.button("再來一局", use_container_width=True):
             st.session_state.game_phase = "LOGIN"
             st.rerun()
+            
+    # --- 底部注意事項 ---
+    st.markdown("""
+    <div class='footer-note'>
+        <b>注意事項：</b><br>
+        1. 使用期限以得獎畫面顯示時間為主，到期恕無法兌換。<br>
+        2. 獎品僅限於 M5 COFFEE 內用店，外帶店不參加活動。<br>
+        3. 本活動最後最終決定權，取決於 M5 COFFEE 公告為主。
+    </div>
+    """, unsafe_allow_html=True)
 
 elif st.session_state.game_phase == "LOSE":
     if not st.session_state.logged:
-        log_game_result(st.session_state.current_user_email, "LOSE", "N/A")
+        log_game_result(st.session_state.current_user_email, "LOSE", "N/A", "N/A")
         st.session_state.logged = True
 
     st.error("⏰ 時間到！挑戰失敗！")
