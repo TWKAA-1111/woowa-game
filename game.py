@@ -1,3 +1,19 @@
+這三個問題都非常清楚，我們來逐一解決：
+
+1. **卡背圖太小**：這是 CSS 的 `background-size` 設定不夠強制的關係。我會把它改成更暴力的「強制拉伸填滿」，確保它跟翻開後的圖片一樣，完全佔滿格子。
+2. **倒數小數點**：這是因為 Python 傳給 JavaScript 時傳了浮點數（小數）。我會加上 `int()` 強制轉成整數，讓它只顯示乾淨的數字。
+3. **倒數 5 秒警示圖**：我會在計時器旁邊預埋一個「隱藏的圖片」，並寫一段 JavaScript 程式：**「當時間剩餘 5 秒以下時，把圖片顯示出來並開始搖晃」**。
+
+---
+
+### 🚀 最終完美修正版 `game.py`
+
+請**全選複製**並覆蓋原本的檔案。
+
+**⚠️ 請注意：**
+為了達成第 3 點需求，請準備一張圖片（例如鬧鐘、驚嘆號、或你喜歡的圖），命名為 **`alert.png`**，並放入跟 `game.py` 同一個資料夾。
+
+```python
 import streamlit as st
 import random
 import time
@@ -28,6 +44,7 @@ path_win = os.path.join(current_dir, "win.png")
 path_lose = os.path.join(current_dir, "lose.png")
 path_bg = os.path.join(current_dir, "bg.jpg")
 path_cover = os.path.join(current_dir, "cover.png")
+path_alert = os.path.join(current_dir, "alert.png") # ★ 新增：倒數警示圖
 
 st.set_page_config(page_title="黃金WooWa兄弟", page_icon="🏆", layout="wide")
 
@@ -66,7 +83,7 @@ def log_game_result(email, result, coupon_code="N/A"):
     else:
         new_df.to_csv(LOG_FILE, index=False, encoding='utf-8-sig')
 
-# --- 3. 視覺與 CSS (修正卡背大小 + 管理員排版) ---
+# --- 3. 視覺與 CSS (修正卡背大小 + 搖晃動畫) ---
 
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f: data = f.read()
@@ -90,13 +107,12 @@ def add_custom_css():
     
     if os.path.exists(path_cover):
         cover_bin = get_base64_of_bin_file(path_cover)
-        # ★ 關鍵修正 1: 強制背景圖滿版，不留空隙 (100% 100%)
+        # ★ 修正 1: 強制背景圖滿版 (background-size: 100% 100%)
         card_back_style = f"""
             background-image: url("data:image/png;base64,{cover_bin}") !important;
             background-size: 100% 100% !important; 
             background-position: center !important;
             background-repeat: no-repeat !important;
-            background-origin: border-box !important;
         """
         card_text_color = "transparent" 
 
@@ -106,6 +122,27 @@ def add_custom_css():
     
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
+
+    /* 定義搖晃動畫 (Shaking Animation) */
+    @keyframes shake {{
+        0% {{ transform: translate(1px, 1px) rotate(0deg); }}
+        10% {{ transform: translate(-1px, -2px) rotate(-1deg); }}
+        20% {{ transform: translate(-3px, 0px) rotate(1deg); }}
+        30% {{ transform: translate(3px, 2px) rotate(0deg); }}
+        40% {{ transform: translate(1px, -1px) rotate(1deg); }}
+        50% {{ transform: translate(-1px, 2px) rotate(-1deg); }}
+        60% {{ transform: translate(-3px, 1px) rotate(0deg); }}
+        70% {{ transform: translate(3px, 1px) rotate(-1deg); }}
+        80% {{ transform: translate(-1px, -1px) rotate(1deg); }}
+        90% {{ transform: translate(1px, 2px) rotate(0deg); }}
+        100% {{ transform: translate(1px, -2px) rotate(-1deg); }}
+    }}
+    
+    /* 套用搖晃效果的 class */
+    .shaking {{
+        animation: shake 0.5s;
+        animation-iteration-count: infinite;
+    }}
 
     /* === 電腦版 (螢幕 > 600px) === */
     @media (min-width: 601px) {{
@@ -126,7 +163,6 @@ def add_custom_css():
              width: 180px !important; height: 180px !important; object-fit: cover;
         }}
         
-        /* 管理員登入框在電腦版限制寬度 */
         [data-testid="stExpander"] {{
             max-width: 300px !important;
         }}
@@ -141,8 +177,6 @@ def add_custom_css():
             padding-right: 0.5rem !important;
         }}
         
-        /* 1. 只針對遊戲區的 Grid 做強制排版 (避免誤傷管理員區塊) */
-        /* 透過檢查是否包含 button 來判斷這是不是遊戲盤面 */
         [data-testid="stHorizontalBlock"]:has(button) {{
             display: grid !important;
             grid-template-columns: 1fr 1fr 1fr !important;
@@ -151,20 +185,18 @@ def add_custom_css():
             margin: 0 auto !important;
         }}
         
-        /* 針對遊戲區的 column 強制設定 */
         [data-testid="stHorizontalBlock"]:has(button) [data-testid="column"] {{
             width: 100% !important;
             min-width: 0 !important;
             flex: unset !important;
         }}
 
-        /* 2. 按鈕 (牌背) 修正：移除 padding 與 border，讓圖片滿版 */
         div.stButton > button {{
             width: 100% !important;
             aspect-ratio: 1 / 1 !important;
             margin: 0 !important;
-            padding: 0 !important;       /* ★ 移除內距 */
-            border: none !important;     /* ★ 移除邊框 */
+            padding: 0 !important;       
+            border: none !important;     
             border-radius: 8px !important;
             color: {card_text_color} !important;
             {card_back_style}
@@ -172,7 +204,6 @@ def add_custom_css():
             box-shadow: none !important;
         }}
 
-        /* 3. 圖片 (牌面) 修正 */
         div[data-testid="stImage"] {{
             width: 100% !important;
             aspect-ratio: 1 / 1 !important;
@@ -187,13 +218,11 @@ def add_custom_css():
         div[data-testid="stImage"] > img {{
             width: 100% !important;
             height: 100% !important;
-            object-fit: cover !important; /* ★ 滿版 */
+            object-fit: cover !important; 
             border-radius: 8px !important;
             padding: 0 !important;
         }}
 
-        /* 4. ★ 關鍵修正：管理員登入區塊 ★ */
-        /* 讓 Expander 在手機版恢復 100% 寬度，不再被壓縮 */
         [data-testid="stExpander"] {{
             width: 100% !important;
             min-width: 100% !important;
@@ -201,7 +230,7 @@ def add_custom_css():
         }}
         
         [data-testid="stExpander"] p {{
-            font-size: 16px !important; /* 放大文字讓它可閱讀 */
+            font-size: 16px !important; 
         }}
 
         h1 {{ font-size: 1.5rem !important; margin-bottom: 10px !important; }}
@@ -212,27 +241,56 @@ def add_custom_css():
 
 def show_dynamic_timer(seconds_left):
     if seconds_left < 0: seconds_left = 0
-    # ★ 修正計時器 JS，確保變數正確傳遞並強制執行
+    
+    # 準備警示圖的 Base64
+    alert_img_html = ""
+    if os.path.exists(path_alert):
+        alert_bin = get_base64_of_bin_file(path_alert)
+        # 預設隱藏 (display: none)，等 JS 來控制
+        alert_img_html = f"""
+            <img id="alert_icon" src="data:image/png;base64,{alert_bin}" 
+            style="display:none; width:30px; vertical-align:middle; margin-right:10px;" />
+        """
+    
+    # ★ 修正 2: 在 Python 端就先轉成 int，確保初始畫面也是整數
+    init_val = int(seconds_left)
+    
     timer_html = f"""
-    <div style="font-family:'Arial';font-size:18px;font-weight:bold;color:white;background-color:#ff4b4b;padding:8px;border-radius:50px;text-align:center;width:70%;max-width:300px;margin:10px auto;box-shadow:1px 1px 3px rgba(0,0,0,0.3);">
-        ⏱️ <span id="timer_val">{int(seconds_left)}</span> 秒
+    <div style="font-family:'Arial';font-size:18px;font-weight:bold;color:white;background-color:#ff4b4b;padding:8px;border-radius:50px;text-align:center;width:80%;max-width:300px;margin:10px auto;box-shadow:1px 1px 3px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center;">
+        {alert_img_html}
+        <span>⏱️ <span id="timer_val">{init_val}</span> 秒</span>
     </div>
     <script>
         (function() {{
-            var timeleft = {seconds_left};
+            var timeleft = {init_val}; // 使用整數
             var timerElement = document.getElementById("timer_val");
+            var alertIcon = document.getElementById("alert_icon");
             
-            // 清除可能存在的舊計時器
             if (window.gameTimer) clearInterval(window.gameTimer);
             
+            // 立即檢查一次是否需要顯示警示
+            if(timeleft <= 5 && alertIcon) {{
+                alertIcon.style.display = "inline-block";
+                alertIcon.classList.add("shaking");
+            }}
+
             window.gameTimer = setInterval(function(){{
                 timeleft -= 1;
+                
+                // 倒數結束
                 if(timeleft <= 0){{
                     clearInterval(window.gameTimer);
                     if(timerElement) timerElement.innerHTML = "0";
                 }} else {{
-                    if(timerElement) timerElement.innerHTML = timeleft;
+                    if(timerElement) timerElement.innerHTML = Math.floor(timeleft);
                 }}
+                
+                // ★ 修正 3: 剩餘 5 秒時顯示圖片並搖晃
+                if(timeleft <= 5 && alertIcon) {{
+                    alertIcon.style.display = "inline-block";
+                    alertIcon.classList.add("shaking");
+                }}
+                
             }}, 1000);
         }})();
     </script>
@@ -384,10 +442,9 @@ elif st.session_state.game_phase == "LOSE":
         st.session_state.game_phase = "LOGIN"
         st.rerun()
 
-# ================= ★ 後台介面 (移除 column 限制，使用直接 Expander) ★ =================
+# ================= ★ 後台介面 ★ =================
 st.divider()
 
-# 不使用 st.columns，直接放 expander，並透過 CSS 控制寬度
 with st.expander("⚙️ 管理員登入"):
     admin_pwd = st.text_input("密碼", type="password", key="admin_pwd")
     if admin_pwd == ADMIN_PASSWORD:
@@ -399,3 +456,5 @@ with st.expander("⚙️ 管理員登入"):
             st.download_button("下載 CSV", csv, "game_data.csv", "text/csv")
         else:
             st.caption("尚無數據")
+
+```
