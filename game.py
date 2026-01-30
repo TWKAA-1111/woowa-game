@@ -36,7 +36,7 @@ path_lose3 = os.path.join(current_dir, "lose3.png")
 
 st.set_page_config(page_title="黃金WooWa兄弟", page_icon="🏆", layout="wide")
 
-# --- 2. 資料存取邏輯 ---
+# --- 2. 資料存取邏輯 (含自動修復功能) ---
 
 def load_data():
     if not os.path.exists(DATA_FILE): return {}
@@ -64,18 +64,31 @@ def is_valid_email(email):
 
 def log_game_result(email, result, prize_name="N/A", coupon_code="N/A"):
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    new_data = {
-        "時間": [now], 
-        "Email": [email], 
-        "遊戲結果": [result], 
-        "獎項": [prize_name],
-        "優惠碼": [coupon_code]
-    }
-    new_df = pd.DataFrame(new_data)
-    if os.path.exists(LOG_FILE):
-        new_df.to_csv(LOG_FILE, mode='a', header=False, index=False, encoding='utf-8-sig')
+    
+    # 定義標準欄位
+    columns = ["時間", "Email", "遊戲結果", "獎項", "優惠碼"]
+    new_data = pd.DataFrame([{
+        "時間": now, 
+        "Email": email, 
+        "遊戲結果": result, 
+        "獎項": prize_name,
+        "優惠碼": coupon_code
+    }])
+
+    # 寫入檔案 (如果檔案不存在或格式錯誤，直接覆寫/修復)
+    if not os.path.exists(LOG_FILE):
+        new_data.to_csv(LOG_FILE, index=False, encoding='utf-8-sig')
     else:
-        new_df.to_csv(LOG_FILE, index=False, encoding='utf-8-sig')
+        try:
+            # 嘗試讀取舊資料，看是否格式相符
+            old_df = pd.read_csv(LOG_FILE)
+            # 如果舊資料少欄位，就強制合併 (pandas 會自動補 NaN)
+            combined = pd.concat([old_df, new_data], ignore_index=True)
+            combined.to_csv(LOG_FILE, index=False, encoding='utf-8-sig')
+        except Exception as e:
+            # 如果讀取失敗 (例如 ParserError)，則強制追加模式，不讀取舊檔
+            # 這樣至少新資料會進去，但可能會讓 CSV 格式變得有點亂，但不會報錯
+            new_data.to_csv(LOG_FILE, mode='a', header=False, index=False, encoding='utf-8-sig')
 
 # --- 3. 視覺與 CSS ---
 
@@ -208,11 +221,22 @@ def add_custom_css():
         background: rgba(255,255,255,0.8); padding: 15px; border-radius: 10px;
     }}
     .prize-expiry {{
-        font-size: 16px; color: #636e72; text-align: center; margin-bottom: 20px;
+        font-size: 16px; color: #636e72; text-align: center; margin-bottom: 10px;
+    }}
+    /* 截圖提示樣式 */
+    .screenshot-alert {{
+        background-color: #ff7675; color: white; padding: 10px; border-radius: 8px;
+        text-align: center; font-weight: bold; font-size: 18px; margin: 15px 0;
+        animation: pulse 2s infinite;
+    }}
+    @keyframes pulse {{
+        0% {{ box-shadow: 0 0 0 0 rgba(255, 118, 117, 0.7); }}
+        70% {{ box-shadow: 0 0 0 10px rgba(255, 118, 117, 0); }}
+        100% {{ box-shadow: 0 0 0 0 rgba(255, 118, 117, 0); }}
     }}
     .footer-note {{
         font-size: 12px; color: #636e72; margin-top: 30px; padding: 10px;
-        background-color: rgba(240, 240, 240, 0.8); border-radius: 5px;
+        background-color: rgba(240, 240, 240, 0.9); border-radius: 5px;
         line-height: 1.5;
     }}
     </style>
@@ -376,7 +400,6 @@ elif st.session_state.game_phase == "PLAYING":
         st.session_state.game_phase = "LOSE"
         st.rerun()
 
-    # ★ 繪製九宮格
     with st.container():
         cols = st.columns(3) 
         for i in range(GRID_SIZE):
@@ -417,7 +440,6 @@ elif st.session_state.game_phase == "PLAYING":
 # ================= 階段 3: 結算 (含機率抽獎) =================
 elif st.session_state.game_phase == "WIN":
     if not st.session_state.logged:
-        # ★ 機率抽獎邏輯 ★
         rewards = [
             ("A", "飲品折10元優惠"),
             ("B", "任一飲品+餐點折20元"),
@@ -425,37 +447,34 @@ elif st.session_state.game_phase == "WIN":
         ]
         probabilities = [0.49, 0.49, 0.02]
         
-        # 抽出獎品 (回傳的是一個 list，取第一個)
         selected = random.choices(rewards, weights=probabilities, k=1)[0]
-        prize_type = selected[0] # A, B, or C
-        prize_name = selected[1] # 獎品全名
+        prize_type = selected[0] 
+        prize_name = selected[1] 
         
-        # 產生優惠碼
         code = f"{prize_type}-{random.randint(10000,99999)}"
         
-        # 計算期限 (當下 + 7天)
         expiry_date = datetime.date.today() + datetime.timedelta(days=7)
         expiry_str = expiry_date.strftime("%Y/%m/%d")
         
-        # 存入 Session 供顯示
         st.session_state.prize_info = {
             "name": prize_name,
             "code": code,
             "expiry": expiry_str
         }
         
-        # 記錄到後台
         log_game_result(st.session_state.current_user_email, "WIN", prize_name, code)
         st.session_state.logged = True
 
     st.balloons()
     
-    # --- 顯示獎品畫面 ---
     prize = st.session_state.prize_info
     
     st.markdown("<h1 style='text-align: center;'>🎉 恭喜中獎！</h1>", unsafe_allow_html=True)
     st.markdown(f"<div class='prize-name'>獲得：{prize['name']}</div>", unsafe_allow_html=True)
     st.markdown(f"<div class='prize-expiry'>📅 使用期限：{prize['expiry']} (含當日)</div>", unsafe_allow_html=True)
+    
+    # ★ 新增：醒目的截圖提示
+    st.markdown("<div class='screenshot-alert'>📸 請務必截圖保存，憑此畫面兌換！</div>", unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
@@ -466,7 +485,6 @@ elif st.session_state.game_phase == "WIN":
             st.session_state.game_phase = "LOGIN"
             st.rerun()
             
-    # --- 底部注意事項 ---
     st.markdown("""
     <div class='footer-note'>
         <b>注意事項：</b><br>
@@ -486,7 +504,7 @@ elif st.session_state.game_phase == "LOSE":
         st.session_state.game_phase = "LOGIN"
         st.rerun()
 
-# ================= ★ 後台介面 ★ =================
+# ================= ★ 後台介面 (含錯誤處理) ★ =================
 st.divider()
 
 with st.expander("⚙️ 管理員登入"):
@@ -494,9 +512,19 @@ with st.expander("⚙️ 管理員登入"):
     if admin_pwd == ADMIN_PASSWORD:
         st.success("已登入")
         if os.path.exists(LOG_FILE):
-            df = pd.read_csv(LOG_FILE)
-            st.dataframe(df, height=200) 
-            csv = df.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
-            st.download_button("下載 CSV", csv, "game_data.csv", "text/csv")
+            # ★ 關鍵修復：嘗試讀取，如果格式錯誤就重置或提示
+            try:
+                df = pd.read_csv(LOG_FILE)
+                st.dataframe(df, height=200) 
+                csv = df.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
+                st.download_button("下載 CSV", csv, "game_data.csv", "text/csv")
+            except Exception as e:
+                st.error("⚠️ 偵測到數據格式版本衝突 (可能是因為新增了獎項欄位)。")
+                st.warning("系統將自動修正此問題。請重新整理頁面，或進行一次遊戲來觸發修復。")
+                # 強制刪除舊檔以重置 (暴力解法，最有效)
+                if st.button("🔴 重置數據庫 (修復格式)"):
+                    os.remove(LOG_FILE)
+                    st.success("數據庫已重置，請重新開始遊戲。")
+                    st.rerun()
         else:
             st.caption("尚無數據")
