@@ -16,13 +16,13 @@ from io import BytesIO
 GAME_DURATION = 30      # 遊戲時間
 GRID_SIZE = 9           # 3x3
 MAX_DAILY_ATTEMPTS = 3  # 每日次數限制
-VIP_EMAIL = "vip@woowa.com" # ★ VIP 測試帳號 (無限次數)
+VIP_EMAIL = "vip@woowa.com" # VIP 帳號
 
 DATA_FILE = "user_data.json" 
 LOG_FILE = "game_logs.csv"   
 ADMIN_PASSWORD = "admin"     
 
-# 圖片路徑 (使用絕對路徑)
+# 圖片路徑
 current_dir = os.path.dirname(os.path.abspath(__file__))
 path_win = os.path.join(current_dir, "win.png")
 path_lose = os.path.join(current_dir, "lose.png")
@@ -43,18 +43,12 @@ def save_data(data):
     with open(DATA_FILE, "w") as f: json.dump(data, f)
 
 def check_and_update_attempts(email):
-    # ★ VIP 帳號直接通過
-    if email == VIP_EMAIL:
-        return True, "VIP無限"
-
+    if email == VIP_EMAIL: return True, "VIP無限"
     data = load_data()
     today_str = str(datetime.date.today())
     if email not in data: data[email] = {}
     current_count = data[email].get(today_str, 0)
-    
-    if current_count >= MAX_DAILY_ATTEMPTS: 
-        return False, current_count
-    
+    if current_count >= MAX_DAILY_ATTEMPTS: return False, current_count
     data[email][today_str] = current_count + 1
     save_data(data)
     return True, current_count + 1
@@ -72,7 +66,7 @@ def log_game_result(email, result, coupon_code="N/A"):
     else:
         new_df.to_csv(LOG_FILE, index=False, encoding='utf-8-sig')
 
-# --- 3. 視覺與 CSS (間距優化版) ---
+# --- 3. 視覺與 CSS (手機版響應式修正) ---
 
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f: data = f.read()
@@ -93,7 +87,6 @@ def add_custom_css():
 
     card_back_style = ""
     card_text_color = "#333"
-    
     if os.path.exists(path_cover):
         cover_bin = get_base64_of_bin_file(path_cover)
         card_back_style = f"""
@@ -107,14 +100,15 @@ def add_custom_css():
     <style>
     {bg_style}
     
-    /* 1. 限制容器寬度與設定 GAP 為 20px */
+    /* =========================================
+       電腦版預設樣式 (維持原狀 180px)
+       ========================================= */
     [data-testid="stHorizontalBlock"] {{
         width: 620px !important;
         margin: 0 auto !important;
         gap: 20px !important;      
     }}
 
-    /* 2. 移除 column 預設邊距 */
     [data-testid="column"] {{
         width: 180px !important;
         flex: 0 0 auto !important;
@@ -122,7 +116,6 @@ def add_custom_css():
         min-width: 0 !important;
     }}
 
-    /* 3. 卡片按鈕樣式 */
     div.stButton > button {{
         width: 180px !important; 
         height: 180px !important; 
@@ -130,37 +123,67 @@ def add_custom_css():
         background-color: rgba(255, 255, 255, 0.9); 
         border-radius: 15px; 
         border: 2px solid #333;
-        
-        /* 上下間距設定 */
         margin-bottom: 20px !important; 
-        margin-top: 0px !important;
-        margin-left: 0px !important;
-        margin-right: 0px !important;
-        
-        padding: 0 !important; 
-        display: block;
         color: {card_text_color} !important;
         {card_back_style}
+        padding: 0 !important;
     }}
     
-    div.stButton > button:active, div.stButton > button:focus {{
-        border-color: #ff4b4b;
-        color: {card_text_color} !important;
-    }}
-
-    /* 4. 圖片顯示區塊 */
     div[data-testid="stImage"] {{
         width: 180px !important; 
         height: 180px !important; 
         margin-bottom: 20px !important;
-        margin-top: 0px !important;
     }}
     
     div[data-testid="stImage"] > img {{
-        width: 180px !important; 
-        height: 180px !important; 
-        object-fit: cover; 
-        border-radius: 15px;
+        width: 180px !important; height: 180px !important; object-fit: cover; border-radius: 15px;
+    }}
+
+    /* =========================================
+       ★ 手機版專用修正 (當螢幕小於 600px 時) ★
+       ========================================= */
+    @media only screen and (max-width: 600px) {{
+        
+        /* 1. 讓九宮格容器縮小以適應手機寬度 */
+        [data-testid="stHorizontalBlock"] {{
+            width: 100% !important; /* 佔滿手機寬度 */
+            min-width: 300px !important;
+            gap: 10px !important;   /* 手機版間距縮小 */
+            justify-content: center !important;
+        }}
+
+        /* 2. 強制讓 Column 變成 33% 寬度，並並排顯示 (解決變一直線的問題) */
+        [data-testid="column"] {{
+            width: 31% !important;  /* 3個加起來接近 100% */
+            flex: 1 1 auto !important;
+            min-width: 80px !important; /* 防止縮太小 */
+        }}
+
+        /* 3. 按鈕 (卡片) 縮小 */
+        div.stButton > button {{
+            width: 100% !important; /* 跟隨欄位寬度 */
+            aspect-ratio: 1 / 1 !important; /* 保持正方形 */
+            height: auto !important;
+            font-size: 30px !important; /* 字體縮小 */
+            margin-bottom: 10px !important;
+        }}
+
+        /* 4. 圖片縮小 */
+        div[data-testid="stImage"] {{
+            width: 100% !important;
+            height: auto !important;
+            margin-bottom: 10px !important;
+        }}
+        div[data-testid="stImage"] > img {{
+            width: 100% !important;
+            height: auto !important;
+            aspect-ratio: 1 / 1 !important; /* 圖片保持正方形 */
+        }}
+        
+        /* 5. 標題縮小 */
+        h1 {{
+            font-size: 1.8rem !important;
+        }}
     }}
     
     .streamlit-expanderHeader {{
@@ -172,8 +195,9 @@ def add_custom_css():
 
 def show_dynamic_timer(seconds_left):
     if seconds_left < 0: seconds_left = 0
+    # 手機版也把計時器縮小一點
     timer_html = f"""
-    <div style="font-family:'Arial';font-size:30px;font-weight:bold;color:white;background-color:#ff4b4b;padding:10px;border-radius:10px;text-align:center;width:300px;margin:20px auto;box-shadow:2px 2px 5px rgba(0,0,0,0.5);">
+    <div style="font-family:'Arial';font-size:24px;font-weight:bold;color:white;background-color:#ff4b4b;padding:8px;border-radius:10px;text-align:center;width:80%;max-width:300px;margin:10px auto;box-shadow:2px 2px 5px rgba(0,0,0,0.5);">
         ⏱️ 剩餘時間: <span id="timer">{int(seconds_left)}</span> 秒
     </div>
     <script>
@@ -198,7 +222,6 @@ def init_game():
     target_count = 3 
     distractor_count = GRID_SIZE - target_count
     
-    # 這裡檢查檔案是否存在
     win_content = path_win if os.path.exists(path_win) else "🌟"
     lose_content = path_lose if os.path.exists(path_lose) else "💨"
     
@@ -239,7 +262,6 @@ if st.session_state.game_phase == "LOGIN":
                 else:
                     can_play, current_count = check_and_update_attempts(email_input)
                     if can_play:
-                        # 顯示登入訊息
                         msg = f"登入成功！今日第 {current_count}/3 次" if current_count != "VIP無限" else "👑 VIP 測試帳號登入！"
                         st.success(msg)
                         st.session_state.current_user_email = email_input
@@ -264,7 +286,6 @@ elif st.session_state.game_phase == "PLAYING":
 
     # ★ 繪製九宮格
     with st.container():
-        # CSS 已經處理了 gap 和 margin，這裡直接用 columns(3)
         cols = st.columns(3) 
         for i in range(GRID_SIZE):
             with cols[i % 3]:
@@ -275,8 +296,7 @@ elif st.session_state.game_phase == "PLAYING":
                     if str(content).lower().endswith(('.png','.jpg','.jpeg')): 
                         st.image(content)
                     else: 
-                        # 如果找不到圖片，顯示文字
-                        st.markdown(f"<div style='width:180px;height:180px;background:white;line-height:180px;text-align:center;font-size:80px;border-radius:15px;margin-bottom:20px;border:2px solid #333;'>{content}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div style='width:100%;aspect-ratio:1/1;background:white;display:flex;align-items:center;justify-content:center;font-size:40px;border-radius:15px;margin-bottom:10px;border:2px solid #333;'>{content}</div>", unsafe_allow_html=True)
                 else:
                     # 顯示牌背
                     disable = (len(st.session_state.temp_flipped) >= 3)
@@ -284,9 +304,8 @@ elif st.session_state.game_phase == "PLAYING":
                         st.session_state.temp_flipped.append(i)
                         st.rerun()
 
-    # ★ 修正後的比對邏輯：確保只在條件成立時執行 ★
+    # 比對邏輯
     if len(st.session_state.temp_flipped) == 3:
-        # 這裡縮排正確，變數 idx1 只會在這裡被定義
         idx1, idx2, idx3 = st.session_state.temp_flipped
         c1 = st.session_state.board[idx1]
         c2 = st.session_state.board[idx2]
