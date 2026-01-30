@@ -85,21 +85,33 @@ def add_custom_css():
         }}
         """
 
+    # 處理封面圖 (Cover)
     card_back_style = ""
-    card_text_color = "#333"
+    card_text_color = "#333" # 預設顯示問號 (黑色)
+    
+    # 除錯：在終端機印出有沒有找到封面
     if os.path.exists(path_cover):
+        print("✅ 找到封面圖 cover.png，正在套用...")
         cover_bin = get_base64_of_bin_file(path_cover)
         card_back_style = f"""
             background-image: url("data:image/png;base64,{cover_bin}") !important;
             background-size: cover !important;
             background-position: center !important;
+            background-repeat: no-repeat !important;
         """
-        card_text_color = "transparent"
+        card_text_color = "transparent" # 隱藏問號
+    else:
+        print("⚠️ 找不到 cover.png，顯示問號")
 
     st.markdown(f"""
     <style>
     {bg_style}
     
+    /* === 全局設定 === */
+    /* 隱藏右上角選單，讓畫面更乾淨 */
+    #MainMenu {{visibility: hidden;}}
+    footer {{visibility: hidden;}}
+
     /* === 電腦版 (螢幕大於 600px) === */
     @media (min-width: 601px) {{
         [data-testid="stHorizontalBlock"] {{
@@ -107,7 +119,15 @@ def add_custom_css():
             margin: 0 auto !important;
             gap: 20px !important;
         }}
-        div.stButton > button, div[data-testid="stImage"] {{
+        div.stButton > button {{
+            width: 180px !important; 
+            height: 180px !important;
+            margin-bottom: 20px !important;
+            font-size: 50px !important;
+            color: {card_text_color} !important;
+            {card_back_style}
+        }}
+        div[data-testid="stImage"] {{
             width: 180px !important; 
             height: 180px !important;
             margin-bottom: 20px !important;
@@ -117,48 +137,52 @@ def add_custom_css():
         }}
     }}
 
-    /* === 手機版專用 (螢幕小於 600px) ★ 重點修改區 ★ === */
+    /* === 手機版專用 (螢幕小於 600px) ★ 暴力修正區 ★ === */
     @media (max-width: 600px) {{
         
-        /* 1. 調整主要容器：去除內距，讓九宮格貼近邊緣 */
+        /* 1. 極致壓縮頂部空間，讓遊戲往上移，避免超出螢幕 */
         .block-container {{
-            padding-left: 5px !important;
-            padding-right: 5px !important;
-            padding-top: 10px !important;
+            padding-top: 1rem !important;
+            padding-bottom: 1rem !important;
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
         }}
-
-        /* 2. 橫向排列容器：強制不換行，設定極小間距 */
+        
+        /* 2. 強制橫向排列容器 (絕對不准換行) */
         [data-testid="stHorizontalBlock"] {{
             width: 100% !important;
-            gap: 6px !important; /* 格子間的縫隙 */
+            gap: 5px !important; /* 極小間距 */
             display: flex !important;
-            flex-wrap: nowrap !important;
+            flex-direction: row !important; /* 強制橫向 */
+            flex-wrap: nowrap !important;   /* 禁止折行 */
             justify-content: center !important;
+            align-items: center !important;
         }}
 
-        /* 3. 每一個欄位 (Column)：強制佔 1/3 寬度 */
+        /* 3. 每個欄位強制佔 1/3 (解決直式變一直線的問題) */
         [data-testid="column"] {{
             width: 32% !important; 
             flex: 1 1 32% !important;
-            min-width: 0 !important;
+            min-width: 0px !important; /* 關鍵：允許縮到無限小，防止被系統撐開 */
         }}
 
-        /* 4. 按鈕 (牌背)：強制正方形 (Aspect Ratio 1/1) */
+        /* 4. 按鈕 (牌背)：強制正方形 */
         div.stButton > button {{
             width: 100% !important;
-            aspect-ratio: 1 / 1 !important; /* ★ 關鍵：正方形鎖定 */
+            aspect-ratio: 1 / 1 !important;
             height: auto !important;
-            margin: 0 !important; /* 移除外距，讓它緊湊 */
+            margin: 0 !important;
             padding: 0 !important;
             border-radius: 8px !important;
-            {card_back_style}
+            font-size: 1px !important; /* 縮小文字避免撐開 */
             color: {card_text_color} !important;
+            {card_back_style}
         }}
 
-        /* 5. 圖片 (牌面)：完全複製按鈕的尺寸設定 */
+        /* 5. 圖片 (牌面)：強制正方形 */
         div[data-testid="stImage"] {{
             width: 100% !important;
-            aspect-ratio: 1 / 1 !important; /* ★ 關鍵：正方形鎖定 */
+            aspect-ratio: 1 / 1 !important;
             height: auto !important;
             margin: 0 !important;
             display: flex !important;
@@ -169,28 +193,32 @@ def add_custom_css():
         div[data-testid="stImage"] > img {{
             width: 100% !important;
             height: 100% !important;
-            object-fit: cover !important; /* 填滿格子不變形 */
+            object-fit: cover !important;
             border-radius: 8px !important;
-            margin: 0 !important;
         }}
 
-        /* 6. 標題文字縮小 */
-        h1 {{ font-size: 1.5rem !important; margin-bottom: 10px !important; }}
-        p {{ font-size: 0.9rem !important; }}
-    }}
-    
-    .streamlit-expanderHeader {{
-        font-size: 14px;
-        color: #555;
+        /* 6. 標題與計時器縮小，節省垂直空間 */
+        h1 {{ 
+            font-size: 1.2rem !important; 
+            margin-bottom: 5px !important; 
+            padding-bottom: 0px !important;
+        }}
+        p {{ 
+            font-size: 0.8rem !important; 
+            margin-bottom: 5px !important;
+        }}
+        /* 隱藏全螢幕按鈕等干擾元素 */
+        button[title="View fullscreen"] {{ display: none; }}
     }}
     </style>
     """, unsafe_allow_html=True)
 
 def show_dynamic_timer(seconds_left):
     if seconds_left < 0: seconds_left = 0
+    # 手機版計時器縮小
     timer_html = f"""
-    <div style="font-family:'Arial';font-size:20px;font-weight:bold;color:white;background-color:#ff4b4b;padding:5px;border-radius:10px;text-align:center;width:90%;max-width:300px;margin:10px auto;box-shadow:2px 2px 5px rgba(0,0,0,0.5);">
-        ⏱️ 剩餘時間: <span id="timer">{int(seconds_left)}</span> 秒
+    <div style="font-family:'Arial';font-size:16px;font-weight:bold;color:white;background-color:#ff4b4b;padding:4px;border-radius:50px;text-align:center;width:60%;margin:5px auto;box-shadow:1px 1px 3px rgba(0,0,0,0.3);">
+        ⏱️ {int(seconds_left)} 秒
     </div>
     <script>
         var timeleft = {seconds_left};
@@ -201,7 +229,7 @@ def show_dynamic_timer(seconds_left):
         }}, 1000);
     </script>
     """
-    html.html(timer_html, height=80)
+    html.html(timer_html, height=45) # 降低高度
 
 def generate_barcode_image(code_text):
     rv = BytesIO()
@@ -240,7 +268,7 @@ if st.session_state.game_phase == "LOGIN":
     st.markdown("<h1 style='text-align: center;'>🏆 找出黃金WooWa三兄弟</h1>", unsafe_allow_html=True)
     
     with st.container():
-        st.markdown("<p style='text-align: center;'>規則：必須一次翻出「3張」WooWa三兄弟才算成功！</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center;'>規則：一次翻出「3張」WooWa三兄弟！</p>", unsafe_allow_html=True)
         
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
@@ -278,7 +306,6 @@ elif st.session_state.game_phase == "PLAYING":
 
     # ★ 繪製九宮格 (這裡會被 CSS 強制排版)
     with st.container():
-        # CSS 透過 gap 控制間距，這裡 columns(3) 只是生成結構
         cols = st.columns(3) 
         for i in range(GRID_SIZE):
             with cols[i % 3]:
