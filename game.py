@@ -22,13 +22,17 @@ DATA_FILE = "user_data.json"
 LOG_FILE = "game_logs.csv"   
 ADMIN_PASSWORD = "admin"     
 
-# 圖片路徑
+# 圖片路徑 (定義多個 lose 圖片)
 current_dir = os.path.dirname(os.path.abspath(__file__))
 path_win = os.path.join(current_dir, "win.png")
-path_lose = os.path.join(current_dir, "lose.png")
 path_bg = os.path.join(current_dir, "bg.jpg")
 path_cover = os.path.join(current_dir, "cover.png")
-path_alert = os.path.join(current_dir, "alert.png") # ★ 新增：倒數警示圖
+path_alert = os.path.join(current_dir, "alert.png")
+
+# ★ 設定 3 種雜魚圖的路徑
+path_lose1 = os.path.join(current_dir, "lose1.png")
+path_lose2 = os.path.join(current_dir, "lose2.png")
+path_lose3 = os.path.join(current_dir, "lose3.png")
 
 st.set_page_config(page_title="黃金WooWa兄弟", page_icon="🏆", layout="wide")
 
@@ -67,7 +71,7 @@ def log_game_result(email, result, coupon_code="N/A"):
     else:
         new_df.to_csv(LOG_FILE, index=False, encoding='utf-8-sig')
 
-# --- 3. 視覺與 CSS (修正卡背大小 + 搖晃動畫) ---
+# --- 3. 視覺與 CSS ---
 
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f: data = f.read()
@@ -91,7 +95,6 @@ def add_custom_css():
     
     if os.path.exists(path_cover):
         cover_bin = get_base64_of_bin_file(path_cover)
-        # ★ 修正 1: 強制背景圖滿版 (background-size: 100% 100%)
         card_back_style = f"""
             background-image: url("data:image/png;base64,{cover_bin}") !important;
             background-size: 100% 100% !important; 
@@ -106,27 +109,6 @@ def add_custom_css():
     
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
-
-    /* 定義搖晃動畫 (Shaking Animation) */
-    @keyframes shake {{
-        0% {{ transform: translate(1px, 1px) rotate(0deg); }}
-        10% {{ transform: translate(-1px, -2px) rotate(-1deg); }}
-        20% {{ transform: translate(-3px, 0px) rotate(1deg); }}
-        30% {{ transform: translate(3px, 2px) rotate(0deg); }}
-        40% {{ transform: translate(1px, -1px) rotate(1deg); }}
-        50% {{ transform: translate(-1px, 2px) rotate(-1deg); }}
-        60% {{ transform: translate(-3px, 1px) rotate(0deg); }}
-        70% {{ transform: translate(3px, 1px) rotate(-1deg); }}
-        80% {{ transform: translate(-1px, -1px) rotate(1deg); }}
-        90% {{ transform: translate(1px, 2px) rotate(0deg); }}
-        100% {{ transform: translate(1px, -2px) rotate(-1deg); }}
-    }}
-    
-    /* 套用搖晃效果的 class */
-    .shaking {{
-        animation: shake 0.5s;
-        animation-iteration-count: infinite;
-    }}
 
     /* === 電腦版 (螢幕 > 600px) === */
     @media (min-width: 601px) {{
@@ -226,33 +208,50 @@ def add_custom_css():
 def show_dynamic_timer(seconds_left):
     if seconds_left < 0: seconds_left = 0
     
-    # 準備警示圖的 Base64
     alert_img_html = ""
     if os.path.exists(path_alert):
         alert_bin = get_base64_of_bin_file(path_alert)
-        # 預設隱藏 (display: none)，等 JS 來控制
         alert_img_html = f"""
             <img id="alert_icon" src="data:image/png;base64,{alert_bin}" 
             style="display:none; width:30px; vertical-align:middle; margin-right:10px;" />
         """
     
-    # ★ 修正 2: 在 Python 端就先轉成 int，確保初始畫面也是整數
     init_val = int(seconds_left)
     
+    # ★ 關鍵修正：將 CSS 放在 iframe 內部，確保動畫生效
     timer_html = f"""
+    <style>
+        @keyframes shake {{
+            0% {{ transform: translate(1px, 1px) rotate(0deg); }}
+            10% {{ transform: translate(-1px, -2px) rotate(-1deg); }}
+            20% {{ transform: translate(-3px, 0px) rotate(1deg); }}
+            30% {{ transform: translate(3px, 2px) rotate(0deg); }}
+            40% {{ transform: translate(1px, -1px) rotate(1deg); }}
+            50% {{ transform: translate(-1px, 2px) rotate(-1deg); }}
+            60% {{ transform: translate(-3px, 1px) rotate(0deg); }}
+            70% {{ transform: translate(3px, 1px) rotate(-1deg); }}
+            80% {{ transform: translate(-1px, -1px) rotate(1deg); }}
+            90% {{ transform: translate(1px, 2px) rotate(0deg); }}
+            100% {{ transform: translate(1px, -2px) rotate(-1deg); }}
+        }}
+        .shaking {{
+            animation: shake 0.5s;
+            animation-iteration-count: infinite;
+        }}
+    </style>
     <div style="font-family:'Arial';font-size:18px;font-weight:bold;color:white;background-color:#ff4b4b;padding:8px;border-radius:50px;text-align:center;width:80%;max-width:300px;margin:10px auto;box-shadow:1px 1px 3px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center;">
         {alert_img_html}
         <span>⏱️ <span id="timer_val">{init_val}</span> 秒</span>
     </div>
     <script>
         (function() {{
-            var timeleft = {init_val}; // 使用整數
+            var timeleft = {init_val}; 
             var timerElement = document.getElementById("timer_val");
             var alertIcon = document.getElementById("alert_icon");
             
             if (window.gameTimer) clearInterval(window.gameTimer);
             
-            // 立即檢查一次是否需要顯示警示
+            // 立即檢查
             if(timeleft <= 5 && alertIcon) {{
                 alertIcon.style.display = "inline-block";
                 alertIcon.classList.add("shaking");
@@ -261,7 +260,6 @@ def show_dynamic_timer(seconds_left):
             window.gameTimer = setInterval(function(){{
                 timeleft -= 1;
                 
-                // 倒數結束
                 if(timeleft <= 0){{
                     clearInterval(window.gameTimer);
                     if(timerElement) timerElement.innerHTML = "0";
@@ -269,7 +267,6 @@ def show_dynamic_timer(seconds_left):
                     if(timerElement) timerElement.innerHTML = Math.floor(timeleft);
                 }}
                 
-                // ★ 修正 3: 剩餘 5 秒時顯示圖片並搖晃
                 if(timeleft <= 5 && alertIcon) {{
                     alertIcon.style.display = "inline-block";
                     alertIcon.classList.add("shaking");
@@ -293,9 +290,26 @@ def init_game():
     distractor_count = GRID_SIZE - target_count
     
     win_content = path_win if os.path.exists(path_win) else "🌟"
-    lose_content = path_lose if os.path.exists(path_lose) else "💨"
     
-    cards = [win_content] * target_count + [lose_content] * distractor_count
+    # ★ 關鍵修正：隨機選取多種雜魚圖
+    available_lose = []
+    if os.path.exists(path_lose1): available_lose.append(path_lose1)
+    if os.path.exists(path_lose2): available_lose.append(path_lose2)
+    if os.path.exists(path_lose3): available_lose.append(path_lose3)
+    
+    # 如果沒找到 1,2,3，試試看有沒有舊的 lose.png，再沒有就用 Emoji
+    if not available_lose:
+        old_lose = os.path.join(current_dir, "lose.png")
+        if os.path.exists(old_lose):
+            available_lose.append(old_lose)
+        else:
+            available_lose.append("💨") # Emoji 備案
+
+    # 產生牌組：3張贏 + 6張隨機的輸
+    cards = [win_content] * target_count
+    for _ in range(distractor_count):
+        cards.append(random.choice(available_lose))
+        
     random.shuffle(cards)
     
     st.session_state.board = cards
