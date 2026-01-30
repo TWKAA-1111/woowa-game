@@ -1,19 +1,3 @@
-這三個問題都非常清楚，我們來逐一解決：
-
-1. **卡背圖太小**：這是 CSS 的 `background-size` 設定不夠強制的關係。我會把它改成更暴力的「強制拉伸填滿」，確保它跟翻開後的圖片一樣，完全佔滿格子。
-2. **倒數小數點**：這是因為 Python 傳給 JavaScript 時傳了浮點數（小數）。我會加上 `int()` 強制轉成整數，讓它只顯示乾淨的數字。
-3. **倒數 5 秒警示圖**：我會在計時器旁邊預埋一個「隱藏的圖片」，並寫一段 JavaScript 程式：**「當時間剩餘 5 秒以下時，把圖片顯示出來並開始搖晃」**。
-
----
-
-### 🚀 最終完美修正版 `game.py`
-
-請**全選複製**並覆蓋原本的檔案。
-
-**⚠️ 請注意：**
-為了達成第 3 點需求，請準備一張圖片（例如鬧鐘、驚嘆號、或你喜歡的圖），命名為 **`alert.png`**，並放入跟 `game.py` 同一個資料夾。
-
-```python
 import streamlit as st
 import random
 import time
@@ -456,5 +440,3 @@ with st.expander("⚙️ 管理員登入"):
             st.download_button("下載 CSV", csv, "game_data.csv", "text/csv")
         else:
             st.caption("尚無數據")
-
-```
